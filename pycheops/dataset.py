@@ -251,6 +251,7 @@ class Dataset(object):
             print(' Coordinates : {} {}'.format(self.ra, self.dec))
 #----
 
+
     @classmethod
     def from_test_data(self, subdir,  target=None, configFile=None, 
             verbose=True):
@@ -494,6 +495,55 @@ class Dataset(object):
             return table
         else:
             return time, flux, flux_err
+
+    def override_lcs(self, time, roll_angle, flux_values, uncertainties, positions, reject_highpoints=True):
+        """
+        In the case in which the LC was obtained with the same data set, but with other methods.
+        Only overrides the class variables set in the get_lightcurve function to the new ones.
+        Only needs to change the flux and uncertainties, since all other parameters should be equal.
+        
+        Parameters
+        ----------
+        flux_values : 
+            Array/list with the new light curve values
+        uncertainties : 
+            Array/list with the new light curve uncertainties
+        positions:
+            list with the position of the star in each image
+        """
+
+        time_ref = np.int(time[0])
+        time_shifted = time-time_ref
+        flux = flux_values
+        flux_err = uncertainties
+        fluxmed = np.nanmedian(flux)
+        xoff = []
+        yoff = []
+        roll_angle = roll_angle
+
+        if reject_highpoints:
+            C_cut = (2*np.nanmedian(flux)-np.nanmin(flux))
+            ok  = (flux < C_cut).nonzero()
+            time_shifted = time_shifted[ok]
+            flux = flux[ok]
+            flux_err = flux_err[ok]
+            xoff = xoff[ok]
+            yoff = yoff[ok]
+            roll_angle = roll_angle[ok]
+
+        flux = flux/fluxmed
+        flux_err = flux_err/fluxmed
+
+        updated_vals = {'time':time_shifted, 
+                        'flux':flux, 
+                        'flux_err':flux_err,
+                        'bjd_ref':time_ref,
+                        'xoff':xoff, 'yoff':yoff, 
+                        'roll_angle':roll_angle, 
+                        }
+
+        for key, value in updated_vals.items():
+            self.lc[key] = value
 
  #----------------------------------------------------------------------------
  # Eclipse and transit fitting
